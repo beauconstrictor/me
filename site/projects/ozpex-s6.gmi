@@ -48,4 +48,4 @@ In theory, you could continue to push this abstraction further, presumably event
 
 => https://github.com/christianad11/subleq As it turns out, someone has done exactly that.
 
-However, I stopped there. That's because I didn't start this project to create a programming language, or even a computer architecture, both of which I have done in the past. I chose this deliberately simple ISA so that I could build it in hardware, and that is my ultimate goal behind this project.
+However, I stopped there. I didn't want this project to become an exercise in abstraction or language design, and I certainly didn't want to completely lose sight of the very quirk that makes this language interesting.
