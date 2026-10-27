@@ -28,11 +28,10 @@ Nevertheless, the S6 assembly language is an undeniable improvement in developer
 
 ## The salvation is neither free nor perfect
 
-There is, however, another hiccup on our road to disguising 'subleq' as a conventional assembly language. Take, for instance, the 'inc' instruction from before, which adds 1 to the value in a memory address. To be able to add or subtract anything from a variable with subleq, you need to store that thing in memory. This means you can't just write 'add 1 x', because 1 doesn't exist. As written, this would add whatever is in memory address 0x0001 to x, which could be anything (including x itself). The intuitive solution to this problem is to place the number one in ROM somewhere, with a label pointing to it. To do this in 's6asm':
+There is, however, another hiccup on our road to disguising 'subleq' as a conventional assembly language. Take, for instance, the 'inc' instruction from before, which adds 1 to the value in a memory address. To be able to add or subtract anything from a variable with subleq, you need to store that thing in memory. This means you can't just write 'add 1 x', because 1 doesn't exist. As written, this would add whatever is in memory address 0x0001 to x, which could be anything (including x itself). The intuitive solution to this problem is to place the number one in ROM somewhere, with a label pointing to it. To do this in our assembly language:
 
 ```
-one:
-  .byte 1
+one: .byte 1
 ```
 
 The obvious downside is that this brings us back to our original problem of an overdose of labels. S6 assembly language introduces a new concept, _immediate values_. Evidently, the only way to solve subleq's problems is with an ever-growing collection of inherently flawed (albeit less so than the alternative, which is raw 'subleq's) abstractions. Immediate values look elegant on the surface: they can be used anywhere normal memory addresses can (because that's really all they are) and solve the problem perfectly. The downside is that using them requires including a 256-byte table of values at the end of your program - yet more 'bloat' in the name of DX.
