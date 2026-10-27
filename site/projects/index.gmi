@@ -8,6 +8,7 @@ These repos aren't particularly up-to-date, but are guaranteed to contain stable
 
 ## Repositories
 
+=> projects/ozpex-s6.gmi Ozpex S6 - A computer architecture, and a journey through abstraction
 => /~beauconstrictor/git/csrpc.git CSRPC - A C/Shell synchronous RPC utility.
 => /~beauconstrictor/git/dotfiles.git Dotfiles - My personal dotfiles.
 => /~beauconstrictor/git/far.git far - A streaming file archiver.

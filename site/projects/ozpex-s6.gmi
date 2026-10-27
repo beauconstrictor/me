@@ -1,0 +1,56 @@
+# Ozpex S6 & S6ASM - A journey through abstraction
+
+> Reader beware, this page is a departure from my usual project-page style.
+
+The Ozpex S6 is a fictional, extremely barebones 8-bit computer architecture designed to be as simple to implement in hardware as possible, by eschewing all sense of positive developer experience.
+
+At its core is the 'subleq a b c' instruction, which does these 3 things:
+
+1. Read the contents at address A,
+2. subtract that from the contents at address B, and write back to B.
+3. Then, if the result was less than or equal to zero (when interpreted with two's complement), jump to C.
+
+That's it! From this, though, you get Turing-completeness, so you can do just as much as you can do on any other 8-bit machine (memory size notwithstanding).
+
+## The fundamental flaw
+
+One of the foundational ideas of building a computer based on 'subleq' is that, while your CPU gets considerably simpler, its complexity has to move somewhere, and that somewhere is usually the software that runs on it.
+
+A good example is the potential branch inherent to every 'subleq'. In reality, most of the instructions in a conventional assembly program _aren't_ branches, and the only way to _not_ jump with 'subleq' is to just jump to the next instruction. Take a minute to think about how ridiculous that is, next to CPUs with relative jumps to make the branches that they _do_ have to take as small as possible. Hence, the S6 is prone to a problem that I call 'death by labels', wherein any and all assembly programs that you write drown in a labels, since you need one after almost every subleq, to convince the processor to just run your instructions sequentially, as it should.
+
+## Salvation?
+
+Alas, you don't really have to write S6 code like this. My S6 assembler, 's6asm', leans heavily on a concept called _macros_. This is where lines that resemble ordinary machine instructions are actually _expanded_ at during assembly into a larger series of instructions (or potentially more macros, which are themselves expanded into instructions). The obvious downside of this is that S6 programs are already rather large: recall that every instruction takes up 6 bytes. Hiding complexity like this compounds that problem, causing code size to balloon - the assembler's 'inc' macro, for instance (conceptually one of the simplest possible instructions) occupies a whopping 24 bytes of program space!
+
+=> https://github.com/beauconstrictor/s6asm 's6asm', the assembler for the Ozpex S6
+
+Nevertheless, the S6 assembly language is an undeniable improvement in developer experience, which I believe should come first in a hobby project of this sort.
+
+## The salvation is neither free nor perfect
+
+There is, however, another hiccup on our road to disguising 'subleq' as a conventional assembly language. Take, for instance, the 'inc' instruction from before, which adds 1 to the value in a memory address. To be able to add or subtract anything from a variable with subleq, you need to store that thing in memory. This means you can't just write 'add 1 x', because 1 doesn't exist. As written, this would add whatever is in memory address 0x0001 to x, which could be anything (including x itself). The intuitive solution to this problem is to place the number one in ROM somewhere, with a label pointing to it. To do this in 's6asm':
+
+```
+one:
+  .byte 1
+```
+
+The obvious downside is that this brings us back to our original problem of an overdose of labels. S6 assembly language introduces a new concept, _immediate values_. Evidently, the only way to solve subleq's problems is with an ever-growing collection of inherently flawed (albeit less so than the alternative, which is raw 'subleq's) abstractions. Immediate values look elegant on the surface: they can be used anywhere normal memory addresses can (because that's really all they are) and solve the problem perfectly. The downside is that using them requires including a 256-byte table of values at the end of your program - yet more 'bloat' in the name of DX.
+
+The immediate system is opt-in in the assembler, and you enable it like this (this also enables the macro library):
+
+```
+  .include <stdlib>
+```
+
+With this in your program, the assembler automatically generates a table of labels and bytes, like the one above, but with all (256) possible byte values during the macro expansion phase. Not only that, but each byte value gets many, many aliases, for different amounts of zero-padding, different numeral bases, and even character constants. If you do use immediates, though, you might want refrain from stopping the assembler after macro-expansion. This is because all the aliases cause the table to take almost 2000 lines, all of which collapse back down into the 256-byte table anyway during linking.
+
+For some examples of immediates, as well as the rest of S6 assembly's syntax, refer to my assembler's README (the link is above).
+
+## C is an attractor for abstraction
+
+In theory, you could continue to push this abstraction further, presumably eventually landing on a C compiler.
+
+=> https://github.com/christianad11/subleq As it turns out, someone has done exactly that.
+
+However, I stopped there. That's because I didn't start this project to create a programming language, or even a computer architecture, both of which I have done in the past. I chose this deliberately simple ISA so that I could build it in hardware, and that is my ultimate goal behind this project.

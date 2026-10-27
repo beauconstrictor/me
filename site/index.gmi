@@ -25,9 +25,9 @@ I'm not a frontend developer, so this website isn't some flashy design project, 
 
 These are some of the larger projects that I have worked on recently. You can find more on my Github profile.
 
-=> projects/madlad.gmi Madlad - A modular text editor for Unix
-=> projects/ozpex-micro.gmi Ozpex Micro - An 8-bit computer architecture designed for extensibility
+=> projects/ozpex-s6.gmi Ozpex S6 - A computer architecture, and a journey through abstraction
 => projects/os-micro.gmi OS/Micro - A full operating system stack and programming language for the Ozpex Micro
+=> projects/madlad.gmi Madlad - A modular text editor for Unix
 => projects/quadraserve.gmi Quadraserve - A 4-protocol web server that supports CGI-like scripts
 => projects/index.gmi And more...
 
