@@ -34,15 +34,11 @@ There is, however, another hiccup on our road to disguising 'subleq' as a conven
 one: .byte 1
 ```
 
-The obvious downside is that this brings us back to our original problem of an overdose of labels. S6 assembly language introduces a new concept, _immediate values_. Evidently, the only way to solve subleq's problems is with an ever-growing collection of inherently flawed (albeit less so than the alternative, which is raw 'subleq's) abstractions. Immediate values look elegant on the surface: they can be used anywhere normal memory addresses can (because that's really all they are) and solve the problem perfectly. The downside is that using them requires including a 256-byte table of values at the end of your program - yet more 'bloat' in the name of DX.
+The obvious downside is that this brings us back to our original problem of an overdose of labels. To remedy this, S6 assembly language introduces a new concept, _immediate values_. Evidently, the only way to solve subleq's problems is with an ever-growing collection of inherently flawed (albeit less so than the alternative, which is raw 'subleq's) abstractions. Immediate values look elegant on the surface: they can be used anywhere normal memory addresses can (because that's really all they are) and solve the problem perfectly. The downside is that using them requires including a 256-byte table of values at the end of your program - yet more 'bloat' in the name of DX.
 
-The immediate system is opt-in in the assembler, and you enable it like this (this also enables the macro library):
+The immediate system is opt-in in the assembler, and you enable it with an include.
 
-```
-  .include <stdlib>
-```
-
-With this in your program, the assembler automatically generates a table of labels and bytes, like the one above, but with all (256) possible byte values during the macro expansion phase. Not only that, but each byte value gets many, many aliases, for different amounts of zero-padding, different numeral bases, and even character constants. If you do use immediates, though, you might want refrain from stopping the assembler after macro-expansion. This is because all the aliases cause the table to take almost 2000 lines, all of which collapse back down into the 256-byte table anyway during linking.
+With this in your program, the assembler automatically generates a table of labels and bytes, like the one above, but with all (256) possible byte values during the macro expansion phase. Not only that, but each byte value gets many, many aliases for different amounts of zero-padding, different numeral bases, and even character constants. If you do use immediates, though, you might want refrain from inspecting the assembler after macro-expansion. This is because all those aliases cause the table to explode in SLoCs, to almost 2000 lines (all of which collapse back down into the 256-byte table anyway during linking).
 
 For some examples of immediates, as well as the rest of S6 assembly's syntax, refer to my assembler's README (the link is above).
 
