@@ -22,4 +22,5 @@ I might post things here. Feel free to not care, or do.
 
 ## My posts
 
+=> illusions.gmi SUBLEQ & Turing-completeness
 => ../projects/ozpex-s6.gmi Ozpex S6 & S6ASM - A journey through abstraction

@@ -1,4 +1,4 @@
-#aOzpex S6 & S6ASM - A journey through abstraction
+# Ozpex S6 & S6ASM - A journey through abstraction
 
 > Reader beware, this page is a departure from my usual project-page style.
 

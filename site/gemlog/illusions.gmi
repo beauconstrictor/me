@@ -1,0 +1,72 @@
+# SUBLEQ & Turing-completeness
+
+In my last post, I talked about the consequences of abstraction, particularly in reference to Ozpex S6 assembly language. However, in this post, I want to talk about a different problem plaguing the machine: code size.
+
+This problem is not unique to the Ozpex S6, but its rather 'unconventional' instruction set exemplifies it considerably. This stems from the S6's single instruction: SUBLEQ, which is forced to implement enough behaviour to compose into all the instructions you might need. It takes 3 16-bit operands, already making it larger than most of the primitive operations on traditional processors. 
+
+On the surface, SUBLEQ might still seem reasonable. Take the 'inc' operation. On most processors, this instruction only consumes a single byte. This includes the Z80 (which I will be using as a reference throughout). INC is actually one of the simplest instructions to implement in SUBLEQ, taking only a single 6 byte instruction. You might then make the reasonable conclusion that code size on the S6 is around 6x larger than on a Z80. However, this fantasy is immediately shattered when we look at another one of the Z80's 1-byte instructions:
+
+```
+ld (hl),a
+```
+
+S6ASM's equivalent operation from the standard library is called 'st x y', and it consumes a respectable 210 bytes. This means the S6's rather generous (for 1980) 32K ROM can hold no less than 1,560 indirect store operations. This is absurd, to be frank, and quite unbelievable if you don't know how it works - so let's find out.
+
+## The illusion of an instruction
+
+The 'st' operation is an abbreviation of 'indirect store'. This hints at its functionality: it takes the value in the address X and stores it, not in the address Y, but in the address that the address Y points to. Effectively, the two bytes starting at address Y are read, and are then used to decide the actual address to write to. This is an essential operation for almost every program, because it allows addresses to change at runtime, opening the door to stacks, function calls, strings and much more.
+
+Notice that I have been careful to use the word 'operation' when referring to 'st' thus far; this is not accidental. Recall that the S6 only has a single fundamental instruction, which the processor just blindly repeats step-by-step, in a loop, forever - and somehow, complex programs can emerge. In reality, no one actually carefully orchestrates the potentially thousands of SUBLEQs needed to create these programs. Instead, we use macros (which are simply building blocks made from multiple SUBLEQs), allowing us to create the illusion of more useful instructions, and making our code easier to reason about. We can then build more macros on top of them, and concentrate on only a single layer, massively reducing the cognitive load of actually developing for S6. This is abstraction, and it is an essential ingredient of all the technology we see around us today.
+
+However, abstraction has a fundamental flaw, inherent in its very nature: it hides the real machinery behind convenient names, and makes it easy to forget how complex each one really is. The indirect store is an excellent example of this problem, because it is only, on the surface, built from 6 other macros, so you would be forgiven for thinking it simple. It's only when you peel away these layers, these illusions, that you can see how absurd the problem really is.
+
+So why is 'st' so obtuse? To understand, we first need to look at SUBLEQ itself. As I mentioned earlier, SUBLEQ takes three memory addresses as operands, and takes these steps:
+
+1. Read the contents at address A,
+2. subtract that from the contents at address B, and write back to B.
+3. Then, if the result was less than or equal to zero (when interpreted with two's complement), jump to C.
+
+It's conceptually very simple, but the problem is that you need to do all of these actions, whether you like it or not. Take for instance, addition. To add, you have to subtract a memory address from itself, to make it zero. Then, you subtract the value you want to add from that address, to make it negative. Then, you subtract that negative version from the address that you want to add to, like this:
+
+```
+; Addition:
+; - Here, we use z as a temporary intermediate location
+; - We want to add x to y.
+       subleq z z next
+next:  subleq x z next2
+next2: subleq z y done
+done:
+```
+
+Notice that we never really want to make a branch here, and yet every operation is required to have a branch target - you're forced to just set it to the next instruction. This wastes two bytes, and, given that our little addition routine uses three SUBLEQs, it actually wastes six. This problem applies to almost every instruction in one way or another: we either don't want the arithmetic, or we don't want the branch; something always gets wasted.
+
+If you can believe it, this isn't even the worst of our worries. No, there is something much more sinister hiding inside SUBLEQ. To find it, we need to think back to our 'st' instruction from earlier, which reads a memory address, and uses what it finds as another memory address, to write to. This operation is fundamentally at odds with SUBLEQ itself, and there is no way to get around that -  no magic sequence of instructions that will do what we want. To solve this, we need an entirely new programming pattern.
+
+## Self-modifying code
+
+Before I explain how we solve this problem, I first want to explain why we even need to, because it isn't immediately obvious why this double lookup is actually useful. Take the 'Hello, world!' program. This is _the_ program that has been used for decades to demonstrate languages, and start learning, so if we can't do this, what _can_ we do? Well luckily, we can! This is how:
+
+```
+out #'H'
+out #'e'
+out #'l'
+out #'l'
+out #'o'
+...
+```
+
+Can you see the problem? There are actually two here. The first is, again, code size. Each 'out' instruction expands to 18 bytes, meaning that program that prints just the first word of our message occupies 90 bytes, not even including the surrounding code that is necessary to make this work. It doesn't stop there, because this requires us to know beforehand what we want print, which is rarely the case in real software. Real software usually outputs the result of some calculation, which is itself the result of whatever the user inputs, meaning we cannot possibly know in advance what exactly our program will return.
+
+What we need is to be able to, give a string of text somewhere in memory, loop over it and print each character, one by one. However, this presents an issue: we don't know the addresses of any of these characters in advance to actually print them, so what addresses do we give to our SUBLEQ instructions?
+
+As it turns out, our only option is to create our own SUBLEQ instructions as the code runs. That way, they can easily depend on what happens at runtime. This is possible because, while our main program code is unchangeable once it is loaded into the S6, there is nothing stopping us from creating more code in RAM whenever we want, and simply jumping to it (as long as we remember to jump back). The problem with this is that each SUBLEQ instruction is 6 bytes long, and you usually need at least two, so that you can ensure you return to your calling code.This means you will need, at minimum 12 memory moves for a self-modifying macro. To make matters worse, the 'st' instruction that we've been deconstructing actually requires three, as well as some surrounding code. Three SUBLEQs to write means we need 18 memory moves. Given that a memory move is itself 24 bytes, this results in an absolutely ludicrous 288 bytes. Luckily, some of those SUBLEQ operands do not change, which means we can intialise them once at program startup, and not include them in the size. However, once we include the surrounding SUBLEQs to handle setting up our data and jumping to the generated code, we still end up with 210 bytes. Unfortunately, this is simply the nature of SUBLEQ, and, as our operations get increasingly complex, it seems our byte counter grows exponentionally. If you were to implement a stack operation like push using just 4 of these 'st' macros, we would be looking at over a kilobyte per push - suddenly, our 32K ROM is starting to look very cozy.
+
+### Turing-completeness
+
+This brings me on, quite unexpectedly, to the theory of computation itself. What exactly makes a computer capable of computing _anything_ is quite hard to pinpoint. We call this property Turing-completeness, and it isn't actually true of anything in the real world. This is because, being an abstract mathematical concept, Turing-completeness requires a computer to have 'unbounded' memory, which is obviously impossible without unbounded space, something we unfortunately don't have. This is, however, silly, because our computers can obviously calculate everything we really want them to, so how do we acknowledge that? The answer is that we coax our definition slightly, making limited memory acceptable. Under these assumptions, our Ozpex S6 is actually Turing-complete, meaning we can compute anything we want!
+
+The problem is, of course, code size (as usual, it seems). We have established thus far that we can't actually fit very much code in our computer at all. Unfortunately, this means we can't _really_ calculate anything. However, all is not lost: we can still calculate an awful lot, meaning our efforts to optimise and design this computer until now have not been entirely to waste.
+
+Furthermore, the S6 itself isn't fundamentally incapable of having more ROM, with some small modifications. In particular, we can use a technique called 'banking', where a specific address in memory actually switches out which ROM area of a much larger ROM chip is available. We could, for example, write a 0x05 into that address, and suddenly our program is replaced with something completely different (such as the next section of something larger). When this is carefully orchestrated, it is possible to contain much, much larger programs.
+
+So there we have it: why programming in SUBLEQ is so hard, how we can make it easier, and how that leads us to comical instructions that take up hundreds (or potentially thousands) of bytes to express what a conventional computer could understand directly, in just one.
